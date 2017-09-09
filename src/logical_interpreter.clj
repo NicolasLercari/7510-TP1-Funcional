@@ -20,64 +20,57 @@
     )
 )
 
-
 (defrecord Rule [name parametros condicion]
   Operacion
   (comparar [this query bdd]
     ( if (not (and (boolean (= (compare (count (:parametros this)) (count(:parametros query))) 0)) 
          (boolean (= (compare (:name this) (:name query)) 0))))
-         false
-          (
+          false
+          (do 
             (def mapa (into {} (map vector (:parametros this) (:parametros query))))
             (def facts  (into [] (map (fn [x] (new Fact (:name x) (into [] (map (fn [y] (get mapa y) ) (:parametros x))))) (:condicion this))) )
-            (reduce (fn [x y] ( and x y )) (into [] (map (fn [x] (not= (find-first #(comparar x % bdd) bdd) nil) ) facts)))
+            (reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (not= (find-first #(comparar unFact % bdd) bdd) nil) ) facts)))
           )    
       )   
-      )      
+    )      
   )
-
-
-
-
 
 (defn parsear-fact 
       [x]
           
-      (def fact (clojure.string/split (clojure.string/replace x #"\)" "") #"\(" ))
+      (def fact (clojure.string/replace x #"," ""))
+      (def fact (clojure.string/replace fact #"\." ""))
+      (def fact (clojure.string/split (clojure.string/replace fact #"\)" "") #"\(" ))
       (def nombreFact (get fact 0))
       (def paramFact (clojure.string/split (get fact 1) #" "))
-      (new Fact nombreFact paramFact)
- 
+      [nombreFact paramFact]
+      ;(new Fact nombreFact paramFact)
   )
 
+(defn crearFact [factStr]
 
-(defn parsear-rule [x]
+  (def nombreParamFact (parsear-fact factStr))
+  (new Fact (get nombreParamFact 0) (get nombreParamFact 1))
+  )
 
-    (def lista (clojure.string/split x #":-"))
+(defn parsear-rule 
+    [ruleStr]
+
+    (def lista (clojure.string/split ruleStr #":-"))
     (def rule (clojure.string/trim (get lista 0)))
-    (def rule (parsear-fact rule))
-    
+    (def rule (crearFact rule))    
     (def facts (clojure.string/trim (get lista 1)))
     (def facts (into [] (map (fn [x] (clojure.string/trim x)) (clojure.string/split facts #"\)") ) ))
-    (def facts (into [] (map (fn [x] (parsear-fact x ) ) facts)))
-    (new Rule (:name rule) (:parametros rule) facts)
- 
-
+    (def facts (into [] (map (fn [x] (crearFact x ) ) facts)))
+    [(:name rule) (:parametros rule) facts]
   )
 
+(defn crearRule [RuleStr]
 
-
-(defn crearBaseDeDatos [database]
-    
-    (try
-        (into [] (map (fn [x] (if-not (clojure.string/includes? x ":-")
-                    (parsear-fact x)
-                    (parsear-rule x)
-                  ))  database))
-    
-        (catch Exception e nil))
-              
+  (def nombreParamFact (parsear-rule RuleStr))
+  (new Rule (get nombreParamFact 0) (get nombreParamFact 1) (get nombreParamFact 2))
   )
+
 (defn parsearDataBase 
     [database] 
     (def data (clojure.string/trim database))
@@ -88,34 +81,24 @@
     (clojure.string/split data2 #"\." )
 )
 
-(def cantidadDeElementosQuery (int 2))
+(defn crearBaseDeDatos [database]
 
-(defn parsearQuery [x]
-    
-    (def queryMod (clojure.string/replace x #"," ""))
-    (def queryMod (clojure.string/replace queryMod #"\." ""))
-    (def fact (clojure.string/split (clojure.string/replace queryMod #"\)" "") #"\(" ))
-    (def nombreFact (get fact 0))
-
-
-    ; PREGUNTAR POR VARIAS LINEAS EN ELSE
-    (if (not= (count fact) cantidadDeElementosQuery) 
-        nil
-        (new Fact nombreFact (clojure.string/split (get fact 1) #" "))
-    )
+  (def databaseParseada (parsearDataBase database))
+  (into [] (map (fn [x] 
+                  (if-not (clojure.string/includes? x ":-")
+                          (crearFact x)
+                          (crearRule x)
+                    )
+                  )  databaseParseada))
   )
-
 
 (defn evaluate-query
   "Returns true if the rules and facts in database imply query, false if not. If
   either input can't be parsed, returns nil"
     [database query] 
-
-  (def databaseParseada (parsearDataBase database))
-  (def bdd (crearBaseDeDatos databaseParseada))
-  (def queryFact (parsearQuery query))
-  (if (or (= bdd nil) (= queryFact nil))
-      nil
-      (boolean (not= (find-first #(comparar % queryFact bdd) bdd) nil))    
-    )
+  (try 
+    (def bdd (crearBaseDeDatos database))
+    (def queryFact (crearFact query))
+    (boolean (not= (find-first #(comparar % queryFact bdd) bdd) nil))    
+   (catch Exception e nil))
 )
