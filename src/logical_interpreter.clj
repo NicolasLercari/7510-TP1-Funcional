@@ -42,19 +42,17 @@
 
 (defn parsear-fact 
       [x]
-    (def fact (clojure.string/split (clojure.string/replace x #"\)" "") #"\(" ))
-    (def nombreFact (get fact 0))
-    (try
-        (
-        (def paramFact (clojure.string/split (get fact 1) #" "))
-        (new Fact nombreFact paramFact)
-        )
-        (catch Exception e nil))
-    ;[nombreFact paramFact]
+          
+      (def fact (clojure.string/split (clojure.string/replace x #"\)" "") #"\(" ))
+      (def nombreFact (get fact 0))
+      (def paramFact (clojure.string/split (get fact 1) #" "))
+      (new Fact nombreFact paramFact)
+ 
   )
 
 
 (defn parsear-rule [x]
+
     (def lista (clojure.string/split x #":-"))
     (def rule (clojure.string/trim (get lista 0)))
     (def rule (parsear-fact rule))
@@ -62,25 +60,24 @@
     (def facts (clojure.string/trim (get lista 1)))
     (def facts (into [] (map (fn [x] (clojure.string/trim x)) (clojure.string/split facts #"\)") ) ))
     (def facts (into [] (map (fn [x] (parsear-fact x ) ) facts)))
-    ;(def facts (into [] (map (fn [x] (clojure.string/split x #"\(") ) facts)))
-    ;(def nombresFacts (into [] (map (fn [x] (get x  0)) facts)))
-    ;(def paramFacts (into [] (map (fn [x] (get x  1)) facts)))
-    ;(def paramFacts (into [] (map (fn [x] (clojure.string/split x #" ")) paramFacts)))
-    ;(def facts (into [] (map vector nombresFacts paramFacts)))
-    ;[rule facts]
     (new Rule (:name rule) (:parametros rule) facts)
+ 
+
   )
 
 
 
 (defn crearBaseDeDatos [database]
-    (into [] (map (fn [x] (if-not (clojure.string/includes? x ":-")
+    
+    (try
+        (into [] (map (fn [x] (if-not (clojure.string/includes? x ":-")
                     (parsear-fact x)
                     (parsear-rule x)
                   ))  database))
+    
+        (catch Exception e nil))
               
   )
-
 (defn parsearDataBase 
     [database] 
     (def data (clojure.string/trim database))
@@ -91,8 +88,22 @@
     (clojure.string/split data2 #"\." )
 )
 
+(def cantidadDeElementosQuery (int 2))
+
+(defn parsearQuery [x]
+    
+    (def queryMod (clojure.string/replace x #"," ""))
+    (def queryMod (clojure.string/replace queryMod #"\." ""))
+    (def fact (clojure.string/split (clojure.string/replace queryMod #"\)" "") #"\(" ))
+    (def nombreFact (get fact 0))
 
 
+    ; PREGUNTAR POR VARIAS LINEAS EN ELSE
+    (if (not= (count fact) cantidadDeElementosQuery) 
+        nil
+        (new Fact nombreFact (clojure.string/split (get fact 1) #" "))
+    )
+  )
 
 
 (defn evaluate-query
@@ -102,12 +113,9 @@
 
   (def databaseParseada (parsearDataBase database))
   (def bdd (crearBaseDeDatos databaseParseada))
-  ;(def query "add(two two one)")
-  (def queryMod (clojure.string/replace query #"," ""))
-  (def queryMod (clojure.string/replace queryMod #"\." ""))
-  (def queryFact (parsear-fact queryMod))
-  (if (= queryFact nil)
+  (def queryFact (parsearQuery query))
+  (if (or (= bdd nil) (= queryFact nil))
       nil
-      (boolean (not= (find-first #(comparar % queryFact bdd) bdd) nil))
+      (boolean (not= (find-first #(comparar % queryFact bdd) bdd) nil))    
     )
 )
