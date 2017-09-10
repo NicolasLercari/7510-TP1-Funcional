@@ -36,15 +36,16 @@
   )
 
 (defn parsear-fact 
-      [x]
-          
-      (def fact (clojure.string/replace x #"," ""))
+      [factStr]
+      "recibe un string que representa a un fact con el siguiente formato
+       add(one, one, two). retorna una lista con nombre de la operacion 
+       del fact y los parametros"        
+      (def fact (clojure.string/replace factStr #"," ""))
       (def fact (clojure.string/replace fact #"\." ""))
       (def fact (clojure.string/split (clojure.string/replace fact #"\)" "") #"\(" ))
       (def nombreFact (get fact 0))
       (def paramFact (clojure.string/split (get fact 1) #" "))
       [nombreFact paramFact]
-      ;(new Fact nombreFact paramFact)
   )
 
 (defn crearFact [factStr]
