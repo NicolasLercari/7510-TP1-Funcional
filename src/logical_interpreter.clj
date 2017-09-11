@@ -7,33 +7,49 @@
 
 (defprotocol Operacion
   (comparar [this query bdd])
+   (esta [query bdd])
   )
 
 (defrecord Fact [name parametros]
   Operacion
   (comparar [this query bdd]
+    "compara dos facts, compara el nombre, la cantidad de parametros,
+    y que los parametros sean iguales."
     (and (and (boolean (= (compare (:parametros this) (:parametros query)) 0)) 
          (boolean (= (compare (:name this) (:name query)) 0)))
        (boolean (= (compare (count (:parametros this)) (count(:parametros query))) 0))
          )
-             
-    )
+    )   
+  (esta [query bdd]
+       "compara cada elemento de la bdd por el query."
+       (boolean (not= (find-first #(comparar % query bdd) bdd) nil))    
+     ) 
 )
 
 (defrecord Rule [name parametros condicion]
   Operacion
   (comparar [this query bdd]
+    "compara el nombre de la rule con el nombre del query y la cantidad de parametros, si esto es cierto
+     procede a especializar cada fact del lado derecho de la rule con los parametros del query pedido
+     y compara con todos estos facts creados.."
     ( if (not (and (boolean (= (compare (count (:parametros this)) (count(:parametros query))) 0)) 
          (boolean (= (compare (:name this) (:name query)) 0))))
           false
           (do 
             (def mapa (into {} (map vector (:parametros this) (:parametros query))))
             (def facts  (into [] (map (fn [x] (new Fact (:name x) (into [] (map (fn [y] (get mapa y) ) (:parametros x))))) (:condicion this))) )
-            (reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (not= (find-first #(comparar unFact % bdd) bdd) nil) ) facts)))
+            ;(reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (not= (find-first #(comparar % unFact bdd) bdd) nil) ) facts)))
+            (reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (esta unFact bdd)) facts)))
           )    
       )   
-    )      
+    )
+    (esta [query bdd]
+       "compara cada elemento de la bdd por el query."
+       (boolean (not= (find-first #(comparar % query bdd) bdd) nil))    
+     )      
   )
+
+
 
 (defn parsear-fact 
       [factStr]
@@ -85,7 +101,7 @@
 (defn crearBaseDeDatos [database]
 
   (def databaseParseada (parsearDataBase database))
-  (into [] (map (fn [x] 
+    (into [] (map (fn [x] 
                   (if-not (clojure.string/includes? x ":-")
                           (crearFact x)
                           (crearRule x)
@@ -100,6 +116,6 @@
   (try 
     (def bdd (crearBaseDeDatos database))
     (def queryFact (crearFact query))
-    (boolean (not= (find-first #(comparar % queryFact bdd) bdd) nil))    
+    (esta queryFact bdd)
    (catch Exception e nil))
 )
