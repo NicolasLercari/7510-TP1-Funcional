@@ -43,7 +43,6 @@
           (do 
             (def mapa (into {} (map vector (:parametros this) (:parametros query))))
             (def facts  (into [] (map (fn [x] (new Fact (:name x) (into [] (map (fn [y] (get mapa y) ) (:parametros x))))) (:condicion this))) )
-            ;(reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (not= (find-first #(comparar % unFact bdd) bdd) nil) ) facts)))
             (reduce (fn [x y] ( and x y )) (into [] (map (fn [unFact] (esta unFact bdd)) facts)))
           )    
       )   
@@ -57,12 +56,10 @@
       "recibe un string que representa a un fact con el siguiente formato
        add(one, one, two). retorna una lista con nombre de la operacion 
        del fact y los parametros"        
-      ;(def fact (clojure.string/replace factStr #"," ""))
       (def fact (clojure.string/replace factStr #"\." ""))
       (def fact (clojure.string/split (clojure.string/replace fact #"\)" "") #"\(" ))
       (def nombreFact (clojure.string/trim (get fact 0)))
       (def paramFact (into [] (map (fn [x] (clojure.string/trim x)) (clojure.string/split (get fact 1) #","))))
-      ;(def paramFact (clojure.string/split (get fact 1) #","))
       [nombreFact paramFact]
   )
 
@@ -79,7 +76,6 @@
     (def rule (clojure.string/trim (get lista 0)))
     (def rule (crearFact rule))    
     (def facts (clojure.string/trim (get lista 1)))
-    ;(def facts (into [] (map (fn [x] (clojure.string/trim x)) (clojure.string/split facts #"\)") ) ))
     (def facts (into [] (map (fn [x] (clojure.string/trim x)) (clojure.string/split facts #"\)(\ )*,") )))
 
     (def facts (into [] (map (fn [x] (crearFact x ) ) facts)))
@@ -97,8 +93,6 @@
     (def data (clojure.string/trim database))
     (def data2 (clojure.string/replace data #"\n" ""))
     (def data2 (clojure.string/replace data2 #"\t" ""))
-    ;(def data2 (clojure.string/replace data2 #"," ""))
-    ;(def data2 (clojure.string/replace data2 #"\." ""))
     (clojure.string/split data2 #"\." )
 )
 
@@ -121,7 +115,5 @@
     (def bdd (crearBaseDeDatos database))
     (def queryFact (crearFact query))
     (esta queryFact bdd)
-    ;bdd
-
    (catch Exception e nil))
 )
